@@ -8,7 +8,7 @@ const server = http.createServer((req, res) => {
   res.end("WebSocket сервер работает");
 });
 
-// WebSocket через upgrade
+// WebSocket через ручной upgrade
 const wss = new WebSocket.Server({ noServer: true });
 server.on('upgrade', (req, socket, head) => {
   wss.handleUpgrade(req, socket, head, ws => {
@@ -19,10 +19,10 @@ server.on('upgrade', (req, socket, head) => {
 // Игровое состояние
 let gameState = {
   cards: Array.from({ length: 20 }, (_, i) => i + 1).sort(() => Math.random() - 0.5),
-  opened: Array(20).fill(false), // какие карты открыты
+  opened: Array(20).fill(false), // какие позиции открыты
   currentPlayer: 1,
-  target: 1,
-  lastResult: null,
+  target: 1,                     // следующая правильная цифра
+  lastResult: null,              // 'correct' | 'wrong' | null
   winner: null
 };
 
@@ -38,28 +38,45 @@ wss.on('connection', ws => {
       const index = gameState.cards.indexOf(value);
 
       if (index !== -1) {
-        gameState.opened[index] = true; // отмечаем карту открытой
+        // Открываем карту — это сразу увидят все
+        gameState.opened[index] = true;
       }
 
       if (value === gameState.target) {
+        // Правильный ход: карта остаётся открытой, двигаем цель
         gameState.target++;
         gameState.lastResult = 'correct';
 
+        // Победа, если прошли все 20
         if (gameState.target > 20) {
           gameState.winner = gameState.currentPlayer;
         }
-      } else {
-        gameState.lastResult = 'wrong';
-        gameState.target = 1;
-        gameState.currentPlayer = gameState.currentPlayer === 1 ? 2 : 1;
 
-        // сброс открытых карт при ошибке
-        gameState.opened = Array(20).fill(false);
+        // Разослать промежуточное состояние
+        broadcast(gameState);
+
+      } else {
+        // Неправильный ход: отмечаем, переключаем игрока, сбрасываем цель
+        gameState.lastResult = 'wrong';
+        gameState.currentPlayer = gameState.currentPlayer === 1 ? 2 : 1;
+        gameState.target = 1;
+
+        // Разослать состояние с открытой ошибочной картой
+        broadcast(gameState);
+
+        // Через задержку закрыть ВСЕ карты
+        setTimeout(() => {
+          gameState.opened = Array(20).fill(false);
+          broadcast(gameState);
+          gameState.lastResult = null;
+        }, 1000);
+      }
+
+      // Сброс lastResult (для корректной HUD) после рассылки при правильном ходе
+      if (gameState.lastResult === 'correct') {
+        setTimeout(() => { gameState.lastResult = null; }, 0);
       }
     }
-
-    broadcast(gameState);
-    setTimeout(() => { gameState.lastResult = null; }, 0);
   });
 });
 
