@@ -66,7 +66,7 @@ wss.on('connection', ws => {
           gameState.opened = Array(20).fill(false);
           broadcast(gameState);
           gameState.lastResult = null;
-        }, 2000);
+        }, 3000);
       }
 
       if (gameState.lastResult === 'correct') {
@@ -93,4 +93,5 @@ function broadcast(state) {
 server.listen(port, () => {
   console.log(`Сервер запущен на порту ${port}`);
 });
+
 
