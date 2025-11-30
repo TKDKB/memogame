@@ -41,7 +41,7 @@ wss.on('connection', ws => {
       const index = gameState.cards.indexOf(value);
 
       if (index !== -1) {
-        gameState.opened[index] = true;
+        gameState.opened[index] = true; // открыть карту
       }
 
       if (value === gameState.target) {
@@ -61,6 +61,7 @@ wss.on('connection', ws => {
 
         broadcast(gameState);
 
+        // через секунду закрыть ВСЕ карты
         setTimeout(() => {
           gameState.opened = Array(20).fill(false);
           broadcast(gameState);
