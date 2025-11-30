@@ -8,16 +8,18 @@ const server = http.createServer((req, res) => {
   res.end("WebSocket сервер работает");
 });
 
+// WebSocket через upgrade
 const wss = new WebSocket.Server({ noServer: true });
-
 server.on('upgrade', (req, socket, head) => {
   wss.handleUpgrade(req, socket, head, ws => {
     wss.emit('connection', ws, req);
   });
 });
 
+// Игровое состояние
 let gameState = {
   cards: Array.from({ length: 20 }, (_, i) => i + 1).sort(() => Math.random() - 0.5),
+  opened: Array(20).fill(false), // какие карты открыты
   currentPlayer: 1,
   target: 1,
   lastResult: null,
@@ -33,6 +35,11 @@ wss.on('connection', ws => {
 
     if (action.type === "flip") {
       const value = action.value;
+      const index = gameState.cards.indexOf(value);
+
+      if (index !== -1) {
+        gameState.opened[index] = true; // отмечаем карту открытой
+      }
 
       if (value === gameState.target) {
         gameState.target++;
@@ -45,6 +52,9 @@ wss.on('connection', ws => {
         gameState.lastResult = 'wrong';
         gameState.target = 1;
         gameState.currentPlayer = gameState.currentPlayer === 1 ? 2 : 1;
+
+        // сброс открытых карт при ошибке
+        gameState.opened = Array(20).fill(false);
       }
     }
 
